@@ -51,8 +51,16 @@ REF = "ATGGCTAAGCGTCCAGGATCCAAGTTCGATCCGTTAACGGCTAAGGCATCGTAGCTAGCATCG"
 class TestGeneticCode:
     @pytest.mark.parametrize(
         ("codon", "residue"),
-        [("ATG", "M"), ("TGG", "W"), ("TAA", "*"), ("TAG", "*"), ("TGA", "*"),
-         ("GGG", "G"), ("TTT", "F"), ("CTA", "L")],
+        [
+            ("ATG", "M"),
+            ("TGG", "W"),
+            ("TAA", "*"),
+            ("TAG", "*"),
+            ("TGA", "*"),
+            ("GGG", "G"),
+            ("TTT", "F"),
+            ("CTA", "L"),
+        ],
     )
     def test_codon_table(self, codon, residue):
         assert CODON_TABLE[codon] == residue
@@ -89,8 +97,8 @@ class TestSelection:
         assert synonymous_sites("CTA") > 1.0
 
     def test_synonymous_detection(self):
-        assert is_synonymous("CTA", "CTG")       # both Leu
-        assert not is_synonymous("ATG", "ATA")   # Met -> Ile
+        assert is_synonymous("CTA", "CTG")  # both Leu
+        assert not is_synonymous("ATG", "ATA")  # Met -> Ile
 
     def test_synonymous_only_changes_give_a_ratio_of_zero(self):
         a = "ATGGCTTTAGGGCCCAAA"
@@ -170,7 +178,7 @@ class TestTreeBuilding:
     TRUTH = {frozenset(["A", "B"]), frozenset(["C", "D"])}
 
     def test_neighbour_joining_recovers_the_true_topology(self):
-        assert self.TRUTH <= clades(neighbour_joining(self.NAMES, self.MATRIX))
+        assert clades(neighbour_joining(self.NAMES, self.MATRIX)) >= self.TRUTH
 
     def test_neighbour_joining_recovers_the_true_branch_lengths(self):
         tree = neighbour_joining(self.NAMES, self.MATRIX)
@@ -189,7 +197,7 @@ class TestTreeBuilding:
         """UPGMA assumes a molecular clock. A strain under resistance pressure
         evolves faster — which is exactly the strain surveillance cares about — and
         UPGMA places it wrongly, confidently."""
-        assert not self.TRUTH <= clades(upgma(self.NAMES, self.MATRIX))
+        assert not clades(upgma(self.NAMES, self.MATRIX)) >= self.TRUTH
 
     def test_upgma_is_correct_when_the_clock_holds(self):
         """It is not a broken method, it is a method with an assumption."""
@@ -221,10 +229,14 @@ class TestAtlas:
                 s = list(REF)
                 if rng.random() < rate:
                     s[20] = "G"
-                out.append(Isolate(
-                    f"{period}-{i}", "".join(s), period=period,
-                    location=rng.choice(["Multan", "Vehari", "Bahawalpur"]),
-                ))
+                out.append(
+                    Isolate(
+                        f"{period}-{i}",
+                        "".join(s),
+                        period=period,
+                        location=rng.choice(["Multan", "Vehari", "Bahawalpur"]),
+                    )
+                )
         return out
 
     def test_a_variant_is_found_and_named_conventionally(self):
@@ -267,14 +279,18 @@ class TestAtlas:
         reported as rising, because two seasons of 100 genomes happened to land at 33%
         and 45%. Effect size alone is not evidence."""
         variants = build_atlas(
-            [Isolate(f"a{i}", REF if i >= 33 else REF[:20] + "G" + REF[21:],
-                     period="2024") for i in range(100)]
-            + [Isolate(f"b{i}", REF if i >= 45 else REF[:20] + "G" + REF[21:],
-                       period="2025") for i in range(100)],
+            [
+                Isolate(f"a{i}", REF if i >= 33 else REF[:20] + "G" + REF[21:], period="2024")
+                for i in range(100)
+            ]
+            + [
+                Isolate(f"b{i}", REF if i >= 45 else REF[:20] + "G" + REF[21:], period="2025")
+                for i in range(100)
+            ],
             REF,
         )
-        assert emerging_variants(variants) == []          # z below 1.96
-        assert emerging_variants(variants, min_z=0.0)     # effect size alone would fire
+        assert emerging_variants(variants) == []  # z below 1.96
+        assert emerging_variants(variants, min_z=0.0)  # effect size alone would fire
 
     def test_a_large_rise_clears_significance_easily(self):
         emerging = emerging_variants(build_atlas(self.isolates(), REF))
@@ -282,9 +298,11 @@ class TestAtlas:
 
     @pytest.mark.parametrize(
         ("a", "na", "b", "nb", "significant"),
-        [(33, 100, 45, 100, False),   # noise
-         (2, 100, 42, 100, True),     # a lineage winning
-         (5, 10, 8, 10, False)],      # a big jump on ten samples is not evidence
+        [
+            (33, 100, 45, 100, False),  # noise
+            (2, 100, 42, 100, True),  # a lineage winning
+            (5, 10, 8, 10, False),
+        ],  # a big jump on ten samples is not evidence
     )
     def test_two_proportion_z(self, a, na, b, nb, significant):
         assert (two_proportion_z(a, na, b, nb) >= 1.96) is significant
@@ -316,8 +334,12 @@ class TestAtlas:
 
     def test_a_single_location_is_concentrated(self):
         isolates = [
-            Isolate(f"i{i}", REF if i % 2 else REF[:20] + "G" + REF[21:],
-                    period="2026", location="Multan")
+            Isolate(
+                f"i{i}",
+                REF if i % 2 else REF[:20] + "G" + REF[21:],
+                period="2026",
+                location="Multan",
+            )
             for i in range(100)
         ]
         spread = geographic_spread(build_atlas(isolates, REF)[0])
@@ -328,9 +350,7 @@ class TestAtlas:
 class TestClassification:
     @staticmethod
     def fitted():
-        return StrainClassifier(k=4).fit(
-            [("Burewala", REF)] * 5 + [("Rajasthan", REF[::-1])] * 5
-        )
+        return StrainClassifier(k=4).fit([("Burewala", REF)] * 5 + [("Rajasthan", REF[::-1])] * 5)
 
     def test_a_known_strain_is_assigned(self):
         assert self.fitted().classify(REF).strain == "Burewala"

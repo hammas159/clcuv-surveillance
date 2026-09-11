@@ -28,12 +28,7 @@ from dataclasses import dataclass
 BASES = "TCAG"
 
 # Standard genetic code, ordered to match the TCAG index expansion below.
-_AMINO = (
-    "FFLLSSSSYY**CC*W"
-    "LLLLPPPPHHQQRRRR"
-    "IIIMTTTTNNKKSSRR"
-    "VVVVAAAADDEEGGGG"
-)
+_AMINO = "FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG"
 
 CODON_TABLE: dict[str, str] = {
     a + b + c: _AMINO[i * 16 + j * 4 + k]
@@ -111,16 +106,14 @@ class Selection:
 
     @property
     def ps(self) -> float:
-        return (
-            self.synonymous_differences / self.synonymous_sites
-            if self.synonymous_sites else 0.0
-        )
+        return self.synonymous_differences / self.synonymous_sites if self.synonymous_sites else 0.0
 
     @property
     def pn(self) -> float:
         return (
             self.nonsynonymous_differences / self.nonsynonymous_sites
-            if self.nonsynonymous_sites else 0.0
+            if self.nonsynonymous_sites
+            else 0.0
         )
 
     @property
@@ -173,7 +166,7 @@ def selection_pressure(seq_a: str, seq_b: str) -> Selection:
         if codon_a == codon_b:
             continue
 
-        differences = sum(1 for x, y in zip(codon_a, codon_b) if x != y)
+        differences = sum(1 for x, y in zip(codon_a, codon_b, strict=False) if x != y)
         if differences == 1:
             if is_synonymous(codon_a, codon_b):
                 syn_diff += 1
@@ -237,9 +230,7 @@ def amino_acid_changes(seq_a: str, seq_b: str) -> list[tuple[int, str, str]]:
     protein_a = translate(seq_a)
     protein_b = translate(seq_b)
     return [
-        (i + 1, x, y)
-        for i, (x, y) in enumerate(zip(protein_a, protein_b))
-        if x != y
+        (i + 1, x, y) for i, (x, y) in enumerate(zip(protein_a, protein_b, strict=False)) if x != y
     ]
 
 
