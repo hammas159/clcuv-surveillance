@@ -43,6 +43,11 @@ class Variant:
     counts_by_period: dict[str, int] = field(default_factory=dict)
     totals_by_period: dict[str, int] = field(default_factory=dict)
     locations: Counter = field(default_factory=Counter)
+    # Cross-tabulated by (period, location). Needed because a frequency that rises
+    # between two periods may only reflect a change in *where* the samples came from -
+    # see `emerging_variants(stratify=True)`.
+    counts_by_stratum: dict[tuple[str, str], int] = field(default_factory=dict)
+    totals_by_stratum: dict[tuple[str, str], int] = field(default_factory=dict)
 
     @property
     def label(self) -> str:
@@ -51,6 +56,22 @@ class Variant:
     def frequency(self, period: str) -> float:
         total = self.totals_by_period.get(period, 0)
         return round(self.counts_by_period.get(period, 0) / total, 6) if total else 0.0
+
+    def strata(self) -> list[str]:
+        """Locations with data for this position."""
+        return sorted({location for _, location in self.totals_by_stratum})
+
+    def trajectory_within(self, location: str) -> list[tuple[str, int, int]]:
+        """(period, carrying, sampled) for one location, in period order.
+
+        Counts rather than frequencies, because a stratified test needs the
+        denominators and a frequency has already thrown them away.
+        """
+        return [
+            (period, self.counts_by_stratum.get((period, location), 0), total)
+            for (period, loc), total in sorted(self.totals_by_stratum.items())
+            if loc == location
+        ]
 
     def trajectory(self) -> list[tuple[str, float, int]]:
         """(period, frequency, sample size), in period order."""
@@ -87,6 +108,7 @@ def build_atlas(
 
     variants: dict[tuple[int, str], Variant] = {}
     period_totals_by_position: dict[int, Counter] = defaultdict(Counter)
+    stratum_totals_by_position: dict[int, Counter] = defaultdict(Counter)
 
     # Denominators are counted per position, not per isolate: a genome with an N at a
     # position contributes no information there and must not inflate the denominator.
@@ -94,6 +116,7 @@ def build_atlas(
         for i, base in enumerate(isolate.sequence.upper()):
             if base in "ACGT":
                 period_totals_by_position[i][isolate.period] += 1
+                stratum_totals_by_position[i][(isolate.period, isolate.location)] += 1
 
     for isolate in isolates:
         for i, base in enumerate(isolate.sequence.upper()):
@@ -105,10 +128,13 @@ def build_atlas(
             variant.counts_by_period[isolate.period] = (
                 variant.counts_by_period.get(isolate.period, 0) + 1
             )
+            stratum = (isolate.period, isolate.location)
+            variant.counts_by_stratum[stratum] = variant.counts_by_stratum.get(stratum, 0) + 1
             variant.locations[isolate.location] += 1
 
     for (position, _), variant in variants.items():
         variant.totals_by_period = dict(period_totals_by_position[position])
+        variant.totals_by_stratum = dict(stratum_totals_by_position[position])
 
     return sorted(
         (v for v in variants.values() if v.overall_frequency >= min_frequency),
@@ -145,6 +171,13 @@ class Emerging:
     change: float
     fold: float | None
     z: float = 0.0
+    # Locations where the rise holds within that location alone. Empty when the trend
+    # only exists in the pooled data, which usually means it is a sampling artefact.
+    confirmed_in: list[str] = field(default_factory=list)
+
+    @property
+    def stratified(self) -> bool:
+        return bool(self.confirmed_in)
 
     def summary(self) -> dict:
         return {
@@ -154,8 +187,57 @@ class Emerging:
             "change": round(self.change, 4),
             "fold": self.fold,
             "z": round(self.z, 3),
+            "confirmed_in": self.confirmed_in,
             "locations": dict(self.variant.locations.most_common(5)),
         }
+
+
+def rises_within_locations(
+    variant: Variant,
+    *,
+    min_change: float = 0.10,
+    min_samples: int = 8,
+    min_z: float = 1.96,
+) -> list[str]:
+    """Locations where this variant rises *within that location's own samples*.
+
+    The confounder this exists for, found on real GenBank data rather than imagined:
+
+        2019 submissions came from Punjab only
+        2021 submissions came from Punjab, Sindh and India
+
+    A variant common in Sindh and absent from Punjab then appears to "emerge" between
+    2019 and 2021, with a perfectly valid z-statistic, having done nothing at all. The
+    frequency genuinely rose; the population being sampled is simply not the same
+    population.
+
+    On a real CLCuMuV set, **ten of eleven** variants flagged by the pooled test were
+    explained by sample geography. Comparing like with like - one location, two periods -
+    is what separates a lineage spreading from a collection shifting.
+    """
+    confirmed: list[str] = []
+
+    for location in variant.strata():
+        usable = [
+            (period, carrying, sampled)
+            for period, carrying, sampled in variant.trajectory_within(location)
+            if sampled >= min_samples
+        ]
+        if len(usable) < 2:
+            continue
+
+        (first_period, first_count, first_total) = usable[0]
+        (last_period, last_count, last_total) = usable[-1]
+
+        change = last_count / last_total - first_count / first_total
+        if change < min_change:
+            continue
+        if two_proportion_z(first_count, first_total, last_count, last_total) < min_z:
+            continue
+
+        confirmed.append(location)
+
+    return confirmed
 
 
 def emerging_variants(
@@ -164,6 +246,7 @@ def emerging_variants(
     min_change: float = 0.10,
     min_samples: int = 10,
     min_z: float = 1.96,
+    stratify: bool = False,
 ) -> list[Emerging]:
     """Variants whose frequency is rising, and rising by more than chance.
 
@@ -201,6 +284,15 @@ def emerging_variants(
         if z < min_z:
             continue
 
+        confirmed = rises_within_locations(
+            variant, min_change=min_change, min_samples=min_samples, min_z=min_z
+        )
+        # With `stratify`, a rise that only exists in the pooled data is discarded. The
+        # pooled test is not wrong - the frequency really did rise - but it cannot tell a
+        # lineage spreading from a sampling programme moving to a different province.
+        if stratify and not confirmed:
+            continue
+
         out.append(
             Emerging(
                 variant=variant,
@@ -213,10 +305,13 @@ def emerging_variants(
                 # large number, turns "newly detected" into "exploding" — a different claim.
                 fold=round(last_freq / first_freq, 3) if first_freq > 0 else None,
                 z=round(z, 4),
+                confirmed_in=confirmed,
             )
         )
 
-    return sorted(out, key=lambda e: -e.change)
+    # Variants confirmed within a location first: those are the ones that survived the
+    # question "compared with what?"
+    return sorted(out, key=lambda e: (not e.stratified, -e.change))
 
 
 def geographic_spread(variant: Variant) -> dict:

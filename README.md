@@ -28,11 +28,15 @@ A mutation sitting at 40% for three seasons is background. One that went 2% → 
 is a lineage winning, and worth knowing about **while it is still at 25%**. So the atlas
 is built around trajectories, and alerting is on the derivative rather than the level.
 
-**But effect size alone is not evidence.** Two seasons of 100 genomes can differ by ten
-points with nothing happening at all. That was a real false positive here: a variant
-held at a constant 40% was reported as rising because two samples happened to land at
-33% and 45%. A two-proportion z-test now runs alongside the effect-size threshold, and
-the noise case is a test:
+Getting that question wrong is easy, and it is wrong in three different ways. **Each of
+the three controls below was added because it caught a false positive that the previous
+two let through**, and the last two were found on real GenBank data rather than imagined.
+
+### Control 1 — effect size is not evidence
+
+Two seasons of 100 genomes can differ by ten points with nothing happening at all. A
+variant held at a constant 40% was reported as rising because two samples happened to
+land at 33% and 45%. A two-proportion z-test runs alongside the effect-size threshold:
 
 ```python
 assert emerging_variants(variants) == []        # z below 1.96
@@ -40,9 +44,55 @@ assert emerging_variants(variants, min_z=0.0)   # effect size alone would have f
 ```
 
 Periods with too few sequences are excluded outright — a variant at "100%" in a period
-where three genomes were sequenced is not at 100%, it is unmeasured. And fold change
-from zero is reported as `None`, because *"newly detected"* and *"exploding"* are
-different claims.
+where three genomes were sequenced is not at 100%, it is unmeasured. Fold change from
+zero is reported as `None`, because *"newly detected"* and *"exploding"* are different
+claims.
+
+### Control 2 — compared with what? (`stratify=True`)
+
+In the real GenBank set, 2019 submissions are Punjab-only and 2021 adds Sindh and India.
+A variant common in Sindh and absent from Punjab then **appears to emerge** between 2019
+and 2021, with a perfectly valid z-statistic, having done nothing at all. The frequency
+genuinely rose. The population being sampled is not the same population.
+
+So the rise is re-tested inside each location separately, comparing like with like.
+On the real data this removed 2 of 11.
+
+### Control 3 — how many independent genomes is that? (`collapse_clonal`)
+
+The remaining nine all "confirmed in Punjab", at z > 3. Then:
+
+```
+2019  Pakistan: Punjab   8 sequences ->  3 haplotypes   (x2.67)
+2021  Pakistan: Punjab   8 sequences ->  1 haplotype    (x8.0)   <- all 28 pairs identical
+2021  Pakistan: Sindh    5 sequences ->  1 haplotype    (x5.0)
+```
+
+Each year's Punjab sample is one submission batch, and the 2021 batch is **clonal** —
+28 of 28 pairs 100% identical. The z-test was told there were sixteen independent
+observations. There were two. Collapsing each `(year, location)` to one sequence per
+haplotype first:
+
+```
+all sequences        n=53   pooled=11   stratified=9
+one per haplotype    n=34   pooled= 9   stratified=0
+```
+
+**Nine to zero.** This is the same bug as a research agent counting one wire story
+republished by twelve outlets as twelve corroborating sources: *the unit of replication
+is not the row*. Identical sequences in **different** places or years are kept — that is
+spread, not duplication.
+
+Reproduce all of it, from NCBI, in one command:
+
+```bash
+uv run python scripts/real_data.py analyse
+```
+
+The honest output on this dataset is that **no variant can be shown to be emerging**.
+There are 528 CLCuV genomes in GenBank and, after deduplication, not enough independent
+ones from any single place and pair of years to support the claim. A surveillance tool
+that says so is more useful than one that reports nine.
 
 ## 2. Is something selecting for it?
 
@@ -137,7 +187,7 @@ reporting cleanly.
 
 ## Tests
 
-**61 tests. No dependencies, no sequence downloads, no BLAST.**
+**101 tests. No dependencies, no sequence downloads, no BLAST.**
 
 Phylogenetics and selection are exact — an additive matrix has one correct tree, and
 dN/dS on synonymous-only changes is zero — so those are asserted rather than
@@ -153,11 +203,17 @@ approximated.
 | Geography | spread vs concentration, Herfindahl index |
 | Classification | known assigned, **novel refused**, unfitted refuses, length-invariant distance |
 | Recombination | block swap and breakpoint located, non-recombinant clean |
+| **Alignment** | bases always recoverable, deletions gapped, insertions get separate columns, **rotated circular genomes refused**, length mismatch refused, one odd sequence tolerated |
+| **Clonality** | clonal batch collapses to one, distinct sequences survive, identical sequences in different places/years kept, ambiguity skipped, **the false positive reproduced then removed**, a rise with real support kept |
+| **Stratification** | the geographic confounder reproduced, then discarded; a within-location rise confirmed; one-period locations confirm nothing |
 
 ## Limits
 
-- **No aligner.** Sequences must arrive aligned; MAFFT or MUSCLE does that job and this
-  repo does not duplicate it.
+- **The aligner is narrow.** `align.py` is banded centre-star, correct for closely
+  related, co-oriented, similar-length genomes — which is what GenBank begomovirus
+  submissions are. It is checked rather than assumed: `check_comparable()` refuses
+  differently rotated circular genomes, because a naive alignment of two rotations of
+  the same genome looks fine and is meaningless. For anything divergent, use MAFFT.
 - Jukes-Cantor assumes equal base frequencies and equal substitution rates. Kimura
   two-parameter or GTR fit real data better; JC is the one you can read in four lines.
 - Neighbour-joining is distance-based. Maximum likelihood and Bayesian inference are
@@ -166,8 +222,14 @@ approximated.
   a population is the real task, and it is combinatorially larger.
 - dN/dS is pairwise Nei-Gojobori. Site-specific and branch-specific selection need a
   phylogeny and a codon model.
-- **No real data ships with this repo.** CLCuV genomes are public in NCBI Virus; the
-  analysis is here, the sequences are not.
+- **Clonal collapse is a blunt instrument.** One sequence per haplotype per
+  `(year, location)` is the right correction when duplication comes from resampling one
+  field; it under-counts when a lineage has genuinely swept and every genome is
+  identical *because* of that. Distinguishing the two needs sampling metadata GenBank
+  does not carry, so the tool reports both numbers rather than choosing.
+- **The real-data conclusion is negative.** After all three controls, no variant in the
+  53 public CLCuMuV genomes can be shown to be emerging. That is a limit of the public
+  data, not of the method, and it is reported rather than worked around.
 
 ## License
 
@@ -182,7 +244,30 @@ git clone https://github.com/hammas159/clcuv-surveillance
 cd clcuv-surveillance
 
 pip install -e .         # zero dependencies to resolve
-pytest -q                # 61 tests, no sequence download
+pytest -q                # 101 tests, no sequence download
+```
+
+### On real genomes, in one command
+
+```bash
+uv run python scripts/real_data.py analyse
+```
+
+Downloads ~60 Cotton leaf curl virus genomes from NCBI (cached after the first run),
+aligns them, builds the atlas and runs all three controls. Standard library only —
+no BLAST, no MAFFT, no API key. Abridged output:
+
+```
+60 records parsed   |  53 are Cotton leaf curl Multan virus
+aligning ... 18.4s  |  width 2833, 73.1% invariant columns, 0 all-gap columns
+716 variants above 1% against the consensus
+
+2019  Pakistan: Punjab    8 seqs ->  3 haplotypes  (x2.67)
+2021  Pakistan: Punjab    8 seqs ->  1 haplotype   (x8.0)    <- too clonal to test
+2021  Pakistan: Sindh     5 seqs ->  1 haplotype   (x5.0)    <- too clonal to test
+
+all sequences        n=53   pooled=11   stratified=9
+one per haplotype    n=34   pooled= 9   stratified=0
 ```
 
 ```python
@@ -231,3 +316,36 @@ method.
 the ratio is undefined, and returning `inf` turns *"we cannot tell"* into *"strong
 positive selection"* — the wrong direction to be wrong in for an alerting system.
 *Fixed* by returning `None` with an explicit "undetermined" interpretation.
+
+**Nine emerging variants, and all nine were one virus.** With the noise and geography
+controls in place, the real GenBank set still reported nine variants rising in Punjab
+between 2019 and 2021 at z > 3. Every number was computed correctly. Then:
+
+```
+2021  Pakistan: Punjab   8 sequences -> 1 haplotype   (28 of 28 pairs 100% identical)
+```
+
+Each year's Punjab sample is a single submission batch, and the 2021 batch is clonal.
+The z-test was told there were sixteen independent observations; there were two. *Fixed*
+with `collapse_clonal()`, which reduces each `(year, location)` to one sequence per
+haplotype before any test runs — and the nine became **zero**.
+
+This is worth stating plainly because it is the same failure as a research agent treating
+one wire story republished by twelve outlets as twelve corroborating sources: **the unit
+of replication is not the row**, and no amount of correct arithmetic downstream repairs
+getting that wrong. The test file reproduces the false positive first and only then shows
+the control removing it, because a fix demonstrated on data where nothing was wrong has
+not been demonstrated.
+
+**The date parser split one year into two.** GenBank `collection_date` has no single
+format — `2019`, `May-2019`, `01-May-2019` and `2015-01` all appear in these 60 records.
+Taking the last four characters yields `5-01` for the fourth, which became its own
+surveillance period holding one genome. Small, silent, and it would have shifted every
+denominator. *Fixed* by extracting the first four-digit year with a regex.
+
+**Writing an aligner was avoidable and doing it anyway was right.** "Sequences must
+arrive aligned" is a defensible boundary and MAFFT is better than anything here. It also
+meant the package could not touch a raw FASTA from NCBI without another install, which
+in practice means the analysis does not get run. `align.py` is deliberately narrow and
+`check_comparable()` refuses what it cannot do — a rotated circular genome aligned
+naively produces a dense field of mutations that are all artefacts, and nothing errors.
