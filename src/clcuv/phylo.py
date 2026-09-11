@@ -39,7 +39,7 @@ def p_distance(a: str, b: str) -> float:
         raise PhyloError("sequences must be aligned and the same length")
 
     compared = differences = 0
-    for x, y in zip(a.upper(), b.upper()):
+    for x, y in zip(a.upper(), b.upper(), strict=False):
         if x not in "ACGT" or y not in "ACGT":
             continue
         compared += 1
@@ -102,9 +102,7 @@ class Node:
     def newick(self) -> str:
         if self.is_leaf:
             return self.name
-        inner = ",".join(
-            f"{child.newick()}:{length:.6f}" for child, length in self.children
-        )
+        inner = ",".join(f"{child.newick()}:{length:.6f}" for child, length in self.children)
         return f"({inner})"
 
 
@@ -134,10 +132,12 @@ def upgma(names: Sequence[str], matrix: list[list[float]]) -> Node:
         i, j = _closest_pair(working, active)
         height = working[i][j] / 2
 
-        parent = Node(children=[
-            (nodes[i], round(height - heights[i], 6)),
-            (nodes[j], round(height - heights[j], 6)),
-        ])
+        parent = Node(
+            children=[
+                (nodes[i], round(height - heights[i], 6)),
+                (nodes[j], round(height - heights[j], 6)),
+            ]
+        )
 
         new_index = max(nodes) + 1
         nodes[new_index] = parent
@@ -152,9 +152,7 @@ def upgma(names: Sequence[str], matrix: list[list[float]]) -> Node:
             if k in (i, j):
                 continue
             # Average linkage, weighted by cluster size.
-            merged = (working[i][k] * sizes[i] + working[j][k] * sizes[j]) / (
-                sizes[i] + sizes[j]
-            )
+            merged = (working[i][k] * sizes[i] + working[j][k] * sizes[j]) / (sizes[i] + sizes[j])
             working[new_index][k] = working[k][new_index] = merged
 
         active = [k for k in active if k not in (i, j)] + [new_index]
@@ -202,10 +200,12 @@ def neighbour_joining(names: Sequence[str], matrix: list[list[float]]) -> Node:
         limb_i = 0.5 * d_ij + (totals[i] - totals[j]) / (2 * (size - 2))
         limb_j = d_ij - limb_i
 
-        parent = Node(children=[
-            (nodes[i], round(max(limb_i, 0.0), 6)),
-            (nodes[j], round(max(limb_j, 0.0), 6)),
-        ])
+        parent = Node(
+            children=[
+                (nodes[i], round(max(limb_i, 0.0), 6)),
+                (nodes[j], round(max(limb_j, 0.0), 6)),
+            ]
+        )
         nodes[next_index] = parent
 
         working[next_index] = {}
@@ -223,10 +223,12 @@ def neighbour_joining(names: Sequence[str], matrix: list[list[float]]) -> Node:
         next_index += 1
 
     left, right = list(working)
-    root = Node(children=[
-        (nodes[left], round(working[left][right] / 2, 6)),
-        (nodes[right], round(working[left][right] / 2, 6)),
-    ])
+    root = Node(
+        children=[
+            (nodes[left], round(working[left][right] / 2, 6)),
+            (nodes[right], round(working[left][right] / 2, 6)),
+        ]
+    )
     return root
 
 

@@ -105,7 +105,9 @@ class StrainClassifier:
 
             distances = [cosine_distance(p, centroid) for p in profiles]
             self.strains[name] = Strain(
-                name=name, centroid=centroid, members=len(profiles),
+                name=name,
+                centroid=centroid,
+                members=len(profiles),
                 mean_internal_distance=round(sum(distances) / len(distances), 6),
                 max_internal_distance=round(max(distances), 6),
             )
@@ -131,15 +133,20 @@ class StrainClassifier:
         runner_up, runner_up_distance = ranked[1] if len(ranked) > 1 else (None, 1.0)
 
         result = Classification(
-            strain=best_name, distance=best_distance,
-            runner_up=runner_up, runner_up_distance=runner_up_distance,
+            strain=best_name,
+            distance=best_distance,
+            runner_up=runner_up,
+            runner_up_distance=runner_up_distance,
         )
 
         if best_distance > self.threshold_for(self.strains[best_name]):
             # Unlike anything known. This is the finding, not a failure to classify.
             return Classification(
-                strain=None, distance=best_distance, runner_up=best_name,
-                runner_up_distance=runner_up_distance, novel=True,
+                strain=None,
+                distance=best_distance,
+                runner_up=best_name,
+                runner_up_distance=runner_up_distance,
+                novel=True,
                 reason=(
                     f"distance {best_distance:.4f} exceeds the threshold "
                     f"{self.threshold_for(self.strains[best_name]):.4f} for its nearest "
@@ -149,8 +156,11 @@ class StrainClassifier:
 
         if runner_up is not None and result.margin < self.min_margin:
             return Classification(
-                strain=None, distance=best_distance, runner_up=runner_up,
-                runner_up_distance=runner_up_distance, novel=True,
+                strain=None,
+                distance=best_distance,
+                runner_up=runner_up,
+                runner_up_distance=runner_up_distance,
+                novel=True,
                 reason=(
                     f"sits between {best_name} and {runner_up} "
                     f"(margin {result.margin:.4f}) - possible recombinant"
@@ -181,17 +191,23 @@ def recombination_signal(
         a = parent_a[start : start + window]
         b = parent_b[start : start + window]
 
-        matches_a = sum(1 for x, y in zip(q, a) if x == y and x in "ACGT")
-        matches_b = sum(1 for x, y in zip(q, b) if x == y and x in "ACGT")
-        windows.append({
-            "start": start,
-            "similarity_a": round(matches_a / len(q), 4),
-            "similarity_b": round(matches_b / len(q), 4),
-            "closer_to": "a" if matches_a > matches_b else "b" if matches_b > matches_a else "tie",
-        })
+        matches_a = sum(1 for x, y in zip(q, a, strict=False) if x == y and x in "ACGT")
+        matches_b = sum(1 for x, y in zip(q, b, strict=False) if x == y and x in "ACGT")
+        windows.append(
+            {
+                "start": start,
+                "similarity_a": round(matches_a / len(q), 4),
+                "similarity_b": round(matches_b / len(q), 4),
+                "closer_to": "a"
+                if matches_a > matches_b
+                else "b"
+                if matches_b > matches_a
+                else "tie",
+            }
+        )
 
     parents = [w["closer_to"] for w in windows if w["closer_to"] != "tie"]
-    switches = sum(1 for x, y in zip(parents, parents[1:]) if x != y)
+    switches = sum(1 for x, y in zip(parents, parents[1:], strict=False) if x != y)
 
     breakpoints = [
         windows[i + 1]["start"]

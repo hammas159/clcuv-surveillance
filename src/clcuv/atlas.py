@@ -37,7 +37,7 @@ class Isolate:
 
 @dataclass
 class Variant:
-    position: int          # 0-based alignment column
+    position: int  # 0-based alignment column
     reference: str
     alternate: str
     counts_by_period: dict[str, int] = field(default_factory=dict)
@@ -116,9 +116,7 @@ def build_atlas(
     )
 
 
-def two_proportion_z(
-    successes_a: int, total_a: int, successes_b: int, total_b: int
-) -> float:
+def two_proportion_z(successes_a: int, total_a: int, successes_b: int, total_b: int) -> float:
     """Z-statistic for a difference between two observed proportions.
 
     Necessary because frequency estimates are noisy and the noise scales with sample
@@ -161,7 +159,10 @@ class Emerging:
 
 
 def emerging_variants(
-    variants: Sequence[Variant], *, min_change: float = 0.10, min_samples: int = 10,
+    variants: Sequence[Variant],
+    *,
+    min_change: float = 0.10,
+    min_samples: int = 10,
     min_z: float = 1.96,
 ) -> list[Emerging]:
     """Variants whose frequency is rising, and rising by more than chance.
@@ -180,10 +181,7 @@ def emerging_variants(
     out: list[Emerging] = []
 
     for variant in variants:
-        usable = [
-            (period, freq, n) for period, freq, n in variant.trajectory()
-            if n >= min_samples
-        ]
+        usable = [(period, freq, n) for period, freq, n in variant.trajectory() if n >= min_samples]
         if len(usable) < 2:
             continue
 
@@ -195,20 +193,28 @@ def emerging_variants(
             continue
 
         z = two_proportion_z(
-            variant.counts_by_period.get(first_period, 0), first_n,
-            variant.counts_by_period.get(last_period, 0), last_n,
+            variant.counts_by_period.get(first_period, 0),
+            first_n,
+            variant.counts_by_period.get(last_period, 0),
+            last_n,
         )
         if z < min_z:
             continue
 
-        out.append(Emerging(
-            variant=variant, first_period=first_period, last_period=last_period,
-            first_frequency=first_freq, last_frequency=last_freq, change=change,
-            # Fold change is undefined from zero. Reporting it as infinite, or as a
-            # large number, turns "newly detected" into "exploding" — a different claim.
-            fold=round(last_freq / first_freq, 3) if first_freq > 0 else None,
-            z=round(z, 4),
-        ))
+        out.append(
+            Emerging(
+                variant=variant,
+                first_period=first_period,
+                last_period=last_period,
+                first_frequency=first_freq,
+                last_frequency=last_freq,
+                change=change,
+                # Fold change is undefined from zero. Reporting it as infinite, or as a
+                # large number, turns "newly detected" into "exploding" — a different claim.
+                fold=round(last_freq / first_freq, 3) if first_freq > 0 else None,
+                z=round(z, 4),
+            )
+        )
 
     return sorted(out, key=lambda e: -e.change)
 
