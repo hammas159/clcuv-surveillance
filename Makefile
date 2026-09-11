@@ -10,6 +10,9 @@ install:  ## Create .venv and install everything
 test:  ## Run the suite - no dependencies at all
 	uv run pytest -q
 
+real:  ## Run the pipeline on real NCBI genomes (cached in data/)
+	uv run python scripts/real_data.py analyse
+
 lint:  ## Lint
 	uv run ruff check src tests
 	uv run ruff format --check src tests
@@ -18,4 +21,4 @@ fmt:  ## Auto-format
 	uv run ruff format src tests
 	uv run ruff check --fix src tests
 
-.PHONY: help install test lint fmt
+.PHONY: help install test real lint fmt
