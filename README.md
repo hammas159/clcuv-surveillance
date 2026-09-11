@@ -172,3 +172,62 @@ approximated.
 ## License
 
 MIT
+
+---
+
+## Run it yourself
+
+```bash
+git clone https://github.com/hammas159/clcuv-surveillance
+cd clcuv-surveillance
+
+pip install -e .         # zero dependencies to resolve
+pytest -q                # 61 tests, no sequence download
+```
+
+```python
+from clcuv import Isolate, build_atlas, emerging_variants, selection_pressure
+from clcuv import distance_matrix, neighbour_joining, StrainClassifier
+
+isolates = [Isolate(name, seq, period="2026-Q1", location="Multan") for name, seq in ...]
+
+atlas = build_atlas(isolates, reference)
+for e in emerging_variants(atlas):
+    print(e.summary())      # C21G: 1.0% (2024-Q1) -> 42.0% (2026-Q1), z=7.06
+
+selection_pressure(coat_protein_a, coat_protein_b).interpretation()
+
+names, matrix = distance_matrix(sequences, names=labels)
+print(neighbour_joining(names, matrix).newick())
+
+clf = StrainClassifier().fit(labelled_genomes)
+clf.classify(new_genome)    # strain=None means "I have not seen this before"
+```
+
+Sequences must already be aligned. CLCuV genomes are public in NCBI Virus; none ship
+with this repo.
+
+## Problems hit while building this
+
+**The emerging-variant detector fired on sampling noise.** A variant sitting at a
+constant 40% was reported as *rising*, because two seasons of 100 genomes happened to
+land at 33% and 45%. A twelve-point jump looks like a lineage winning and is, at that
+sample size, ordinary wobble.
+
+A surveillance system that cries wolf gets ignored by the third false alarm — so effect
+size alone is not evidence. *Fixed* by requiring a two-proportion z-test alongside the
+threshold, and the noise case is now a test that also asserts the old behaviour *would*
+have fired.
+
+**UPGMA is in the repo specifically to be wrong.** It assumes a molecular clock, and the
+lineage under host-resistance pressure evolves fastest — precisely the lineage
+surveillance cares about. On an additive matrix where the true tree is known, neighbour-
+joining recovers the exact topology **and branch lengths** while UPGMA misplaces the
+fast-evolving taxon, confidently. Both are tests, and UPGMA is also tested on an
+ultrametric matrix, because it is a method with an assumption rather than a broken
+method.
+
+**dN/dS reporting infinity would have been an alarm.** With no synonymous differences
+the ratio is undefined, and returning `inf` turns *"we cannot tell"* into *"strong
+positive selection"* — the wrong direction to be wrong in for an alerting system.
+*Fixed* by returning `None` with an explicit "undetermined" interpretation.
