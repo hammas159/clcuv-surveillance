@@ -1,19 +1,44 @@
-# clcuv-surveillance (Python, zero dependencies)
+<h1 align="center">clcuv-surveillance</h1>
+<p align="center"><i>Which variant is winning, why, and whether our diagnostics can still see it</i></p>
 
-[![ci](https://github.com/hammas159/clcuv-surveillance/actions/workflows/ci.yml/badge.svg)](https://github.com/hammas159/clcuv-surveillance/actions/workflows/ci.yml)
-![python](https://img.shields.io/badge/python-3.10%2B-blue)
-![dependencies](https://img.shields.io/badge/dependencies-none-success)
-![license](https://img.shields.io/badge/license-MIT-green)
+<p align="center">
+  <a href="#the-problem">The problem</a> &middot;
+  <a href="#1-which-variant-is-rising--and-is-that-real">Which variant is rising</a> &middot;
+  <a href="#2-is-something-selecting-for-it">Selection pressure</a> &middot;
+  <a href="#3-how-are-the-strains-related">Phylogeny</a> &middot;
+  <a href="#4-is-this-something-we-have-never-seen">Novel strains</a> &middot;
+  <a href="#problems-hit-while-building-this">Problems hit</a>
+</p>
 
-**Genomic surveillance for Cotton Leaf Curl Virus — which variant is winning, why, and
-whether our diagnostics can still see it.**
-
-Mutation atlas · selection pressure · phylogeny · novel-strain detection ·
-recombination. Zero dependencies.
+<p align="center">
+  <a href="https://github.com/hammas159/clcuv-surveillance/actions/workflows/ci.yml"><img src="https://github.com/hammas159/clcuv-surveillance/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="python">
+  <img src="https://img.shields.io/badge/dependencies-zero-success" alt="deps">
+  <img src="https://img.shields.io/badge/data-NCBI%20GenBank-orange" alt="data">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+</p>
 
 ---
 
 ## The problem
+
+```mermaid
+flowchart TD
+    G["CLCuV genomes<br/>NCBI GenBank"] --> M["mutation atlas"]
+    M --> F{"is a variant rising -<br/>or is it sampling bias?"}
+    F --> S["selection pressure<br/>dN/dS"]
+    S --> P["phylogeny"]
+    P --> N["novel-strain detection"]
+    N --> R["recombination analysis"]
+    R --> L["closes the loop with<br/>primer-designer"]
+
+    style F fill:#f59e0b,color:#fff
+    style L fill:#2563eb,color:#fff
+```
+
+**"Is that real, or is it sampling bias?"** is the first question, not the last. A variant
+appearing more often in a database may only mean someone sequenced more of it.
+
 
 Cotton Leaf Curl Virus is the most serious threat to Punjab's cotton crop.
 Resistance-breaking strains have already defeated resistant cultivars **and** the PCR
@@ -230,6 +255,10 @@ approximated.
 - **The real-data conclusion is negative.** After all three controls, no variant in the
   53 public CLCuMuV genomes can be shown to be emerging. That is a limit of the public
   data, not of the method, and it is reported rather than worked around.
+
+## Keywords
+
+genomic surveillance &middot; Cotton Leaf Curl Virus &middot; CLCuV &middot; begomovirus &middot; phylogenetics &middot; mutation analysis &middot; selection pressure &middot; dNdS &middot; recombination detection &middot; novel strain detection &middot; sampling bias &middot; plant pathology &middot; agricultural biotechnology &middot; NCBI GenBank &middot; bioinformatics &middot; zero dependencies
 
 ## License
 
