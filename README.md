@@ -210,6 +210,28 @@ An emerging variant under a primer binding site is a primer-health alert waiting
 happen, and a 3′-terminal mismatch there means the assay goes blind while still
 reporting cleanly.
 
+---
+
+## Input
+
+![input](docs/images/input.png)
+
+## Output
+
+`make real`
+
+![output](docs/images/output.png)
+
+*Eight genomes from Punjab in 2021 are one haplotype — the same infection sequenced eight
+times. Counting them as eight independent observations is what produces nine "emerging"
+variants. Counting them once produces none.*
+
+*The zero is the result. Nine variants that looked real under a pooled test, and a
+stratified test, had no independent support at all, and the dataset cannot answer the
+question it was asked.*
+
+---
+
 ## Tests
 
 **101 tests. No dependencies, no sequence downloads, no BLAST.**
