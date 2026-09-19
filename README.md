@@ -1,4 +1,4 @@
-<h1 align="center">clcuv-surveillance</h1>
+<h1 align="center">clcuv-surveillance (Python · pairwise alignment · dN/dS · UPGMA phylogeny)</h1>
 <p align="center"><i>Which variant is winning, why, and whether our diagnostics can still see it</i></p>
 
 <p align="center">
