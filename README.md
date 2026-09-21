@@ -81,11 +81,11 @@ and 2021, with a perfectly valid z-statistic, having done nothing at all. The fr
 genuinely rose. The population being sampled is not the same population.
 
 So the rise is re-tested inside each location separately, comparing like with like.
-On the real data this removed 2 of 11.
+On the real data this removed 40 of 92.
 
 ### Control 3 — how many independent genomes is that? (`collapse_clonal`)
 
-The remaining nine all "confirmed in Punjab", at z > 3. Then:
+The remaining 52 are "confirmed" somewhere, most of them Punjab, at z > 3. Then:
 
 ```
 2019  Pakistan: Punjab   8 sequences ->  3 haplotypes   (x2.67)
@@ -115,9 +115,10 @@ uv run python scripts/real_data.py analyse
 ```
 
 The honest output on this dataset is that **no variant can be shown to be emerging**.
-There are 528 CLCuV genomes in GenBank and, after deduplication, not enough independent
-ones from any single place and pair of years to support the claim. A surveillance tool
-that says so is more useful than one that reports nine.
+This query returns 254 genomes, which deduplicate to 191 haplotypes across 96 strata -
+and after that, not enough independent ones from any single place and pair of years to
+support the claim. A surveillance tool that says so is more useful than one that
+reports 52.
 
 ## 2. Is something selecting for it?
 
@@ -368,9 +369,9 @@ the ratio is undefined, and returning `inf` turns *"we cannot tell"* into *"stro
 positive selection"* — the wrong direction to be wrong in for an alerting system.
 *Fixed* by returning `None` with an explicit "undetermined" interpretation.
 
-**Nine emerging variants, and all nine were one virus.** With the noise and geography
-controls in place, the real GenBank set still reported nine variants rising in Punjab
-between 2019 and 2021 at z > 3. Every number was computed correctly. Then:
+**Fifty-two emerging variants, and none of them independent.** With the noise and
+geography controls in place, the real GenBank set still reported 52 variants rising at
+z > 3, most of them in Punjab. Every number was computed correctly. Then:
 
 ```
 2021  Pakistan: Punjab   8 sequences -> 1 haplotype   (28 of 28 pairs 100% identical)
@@ -379,7 +380,7 @@ between 2019 and 2021 at z > 3. Every number was computed correctly. Then:
 Each year's Punjab sample is a single submission batch, and the 2021 batch is clonal.
 The z-test was told there were sixteen independent observations; there were two. *Fixed*
 with `collapse_clonal()`, which reduces each `(year, location)` to one sequence per
-haplotype before any test runs — and the nine became **zero**.
+haplotype before any test runs — and the 52 became **zero**.
 
 This is worth stating plainly because it is the same failure as a research agent treating
 one wire story republished by twelve outlets as twelve corroborating sources: **the unit

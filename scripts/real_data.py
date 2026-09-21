@@ -33,7 +33,11 @@ from clcuv.haplotype import collapse_clonal, effective_sample_sizes  # noqa: E40
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 QUERY = '"Cotton leaf curl Multan virus"[Organism] AND 2500:3000[SLEN]'
-RETMAX = 60
+# Every record the query matches. The first version asked for 60, which was a round
+# number and not a reason - and the headline finding is that there are not enough
+# INDEPENDENT genomes to support an emergence claim, which is a statement about sample
+# size. Making it 60 by choice and then reporting a sample-size limit would be circular.
+RETMAX = 300
 # Committed to the repo: 532 KB, and it makes the headline result reproducible with
 # no network at all. Delete it and `fetch` downloads it again.
 DATA = Path(__file__).resolve().parent.parent / "data"
@@ -52,12 +56,13 @@ def _get(endpoint: str, **params) -> str:
         return response.read().decode("utf-8", "replace")
 
 
-def fetch() -> Path:
+def fetch(force: bool = False) -> Path:
     """Download GenBank records, once. NCBI asks for three requests a second at most."""
     DATA.mkdir(exist_ok=True)
     target = DATA / "clcuv.gb"
-    if target.exists():
+    if target.exists() and not force:
         print(f"using {target} ({target.stat().st_size:,} bytes)")
+        print("pass --force to re-download, e.g. after raising RETMAX")
         return target
 
     search = _get("esearch", term=QUERY, retmax=RETMAX)
@@ -191,23 +196,32 @@ def analyse() -> None:
     print(f"\n{len(atlas)} variants above 1% against the consensus")
 
     print("\n--- what survives each control ---")
+    counts: dict[str, int] = {}
     for name, pool in (("all sequences", isolates), ("one per haplotype", collapsed)):
         variants = build_atlas(pool, reference)
         pooled = emerging_variants(variants, min_samples=8)
         stratified = emerging_variants(variants, min_samples=8, stratify=True)
+        counts[name] = len(stratified)
         print(f"  {name:<20} n={len(pool):<3} pooled={len(pooled):<3} stratified={len(stratified)}")
 
+    # Computed, not written down. An earlier version said "the nine that survive" as prose.
+    # The corpus then went from 60 genomes to 254, the number became 52, and the sentence
+    # was still confidently saying nine - a narrative that does not read the data it
+    # describes is a claim waiting to go stale.
+    survived = counts["all sequences"]
+    independent = counts["one per haplotype"]
     print(
-        "\nThe nine that survive stratification are all confirmed in one place, Punjab,\n"
-        "on a 2021 sample of eight genomes that is one haplotype. Asked for independent\n"
-        "evidence, none of them have any. That is the honest answer this dataset supports."
+        f"\nThe {survived} that survive stratification do so on pooled counts that still\n"
+        "contain clonal duplicates. Collapse each clonal group to one haplotype, ask again,\n"
+        f"and {independent} are left. Asked for independent evidence they have none, which is\n"
+        "the honest answer this dataset supports."
     )
 
 
 if __name__ == "__main__":
     command = sys.argv[1] if len(sys.argv) > 1 else "analyse"
     if command == "fetch":
-        fetch()
+        fetch(force="--force" in sys.argv)
     elif command == "analyse":
         analyse()
     else:
