@@ -211,6 +211,20 @@ An emerging variant under a primer binding site is a primer-health alert waiting
 happen, and a 3′-terminal mismatch there means the assay goes blind while still
 reporting cleanly.
 
+`scripts/export_alignment.py` is the actual handover — it writes the aligned set as FASTA
+with its provenance in the header, and that file is committed *there* as input data rather
+than the two repositories sharing a runtime dependency:
+
+```bash
+uv run python scripts/export_alignment.py ../primer-designer/data/clcuv_aligned.fasta
+```
+
+It exports **one sequence per haplotype, not one per record**, which is the same collapse
+the emergence controls rest on. Conservation counted across clonal duplicates would let a
+single 2021 Punjab submission of eight identical genomes vote eight times on how safe a
+site is, and a primer designed against that number has been told the site is more conserved
+than the evidence supports. 250 records, 210 haplotypes.
+
 ---
 
 ## Input
