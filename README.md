@@ -99,11 +99,11 @@ observations. There were two. Collapsing each `(year, location)` to one sequence
 haplotype first:
 
 ```
-all sequences        n=53   pooled=11   stratified=9
-one per haplotype    n=34   pooled= 9   stratified=0
+all sequences        n=229  pooled=92  stratified=52
+one per haplotype    n=191  pooled= 0   stratified=0
 ```
 
-**Nine to zero.** This is the same bug as a research agent counting one wire story
+**Fifty-two to zero.** This is the same bug as a research agent counting one wire story
 republished by twelve outlets as twelve corroborating sources: *the unit of replication
 is not the row*. Identical sequences in **different** places or years are kept — that is
 spread, not duplication.
@@ -319,21 +319,22 @@ pytest -q                # 101 tests, no sequence download
 uv run python scripts/real_data.py analyse
 ```
 
-Downloads ~60 Cotton leaf curl virus genomes from NCBI (cached after the first run),
+Downloads the Cotton leaf curl virus genomes from NCBI (cached after the first run;
+currently 254 records, 250 of them CLCuMuV - the corpus grows as sequences are deposited),
 aligns them, builds the atlas and runs all three controls. Standard library only —
 no BLAST, no MAFFT, no API key. Abridged output:
 
 ```
-60 records parsed   |  53 are Cotton leaf curl Multan virus
-aligning ... 18.4s  |  width 2833, 73.1% invariant columns, 0 all-gap columns
-716 variants above 1% against the consensus
+254 records parsed  |  250 are Cotton leaf curl Multan virus, 229 carry a date
+aligning ... 109s   |  width 3162, 30.4% invariant columns, 0 all-gap columns
+838 variants above 1% against the consensus
 
 2019  Pakistan: Punjab    8 seqs ->  3 haplotypes  (x2.67)
 2021  Pakistan: Punjab    8 seqs ->  1 haplotype   (x8.0)    <- too clonal to test
 2021  Pakistan: Sindh     5 seqs ->  1 haplotype   (x5.0)    <- too clonal to test
 
-all sequences        n=53   pooled=11   stratified=9
-one per haplotype    n=34   pooled= 9   stratified=0
+all sequences        n=229  pooled=92  stratified=52
+one per haplotype    n=191  pooled= 0   stratified=0
 ```
 
 ```python
@@ -404,7 +405,7 @@ the control removing it, because a fix demonstrated on data where nothing was wr
 not been demonstrated.
 
 **The date parser split one year into two.** GenBank `collection_date` has no single
-format — `2019`, `May-2019`, `01-May-2019` and `2015-01` all appear in these 60 records.
+format — `2019`, `May-2019`, `01-May-2019` and `2015-01` all appear in these records.
 Taking the last four characters yields `5-01` for the fourth, which became its own
 surveillance period holding one genome. Small, silent, and it would have shifted every
 denominator. *Fixed* by extracting the first four-digit year with a regex.
