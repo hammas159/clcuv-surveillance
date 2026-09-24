@@ -35,8 +35,7 @@ ROOT = Path(__file__).resolve().parent
 
 
 def main() -> int:
-    print("clcuv-surveillance: how much of this dataset is independent evidence?",
-          flush=True)
+    print("clcuv-surveillance: how much of this dataset is independent evidence?", flush=True)
     print(flush=True)
     print("First run downloads genomes from NCBI and caches them under data/;", flush=True)
     print("later runs are offline. Aligning 250 genomes takes roughly two minutes.", flush=True)
@@ -45,7 +44,9 @@ def main() -> int:
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
     result = subprocess.run(
         [sys.executable, "scripts/real_data.py", "analyse"],
-        cwd=ROOT, env=env, check=False,
+        cwd=ROOT,
+        env=env,
+        check=False,
     )
     if result.returncode != 0:
         print(flush=True)
